@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Writer's Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300&display=swap" rel="stylesheet">
+<style>
+/*
+  VOICE: a Medium-style editorial essay told as a small story game, in Tomiris's voice.
+  IDEA: a journey map drawn in ink; every station is a page of the reflection.
+  PICTURE: Tomiris, an original inline-SVG mascot, guiding each station.
+  COLOUR and TYPE: #363636 ground, #474747 surfaces, hot-pink accents; Poppins throughout. Dark roots to chestnut-copper hair, brown suit, on dark grey.
+  LAYOUT: sticky ink-trail map on top, one station at a time, 680px reading column.
+  Contrast note: #E8175D and #CC527A fail AA as small text on #363636, so they are used for
+  fills, lines and large bold labels only; all reading text is #F2F0F0 or #A8A7A7 on #363636.
+*/
+:root{
+  color-scheme:dark;
+  --bg:#363636; --panel:#474747; --muted:#A8A7A7; --soft:#CC527A; --hot:#E8175D;
+  --ink:#F2F0F0; --ink2:#DEDCDC;
+  --col:680px;
+}
+*{box-sizing:border-box;min-width:0}
+html{scroll-padding-top:150px}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 17.5px/1.7 Poppins,system-ui,sans-serif;overflow-x:clip}
+a{color:var(--ink);text-decoration-color:var(--hot);text-underline-offset:3px;text-decoration-thickness:2px}
+a:hover{text-decoration-color:var(--soft)}
+:focus-visible{outline:3px solid var(--hot);outline-offset:3px;border-radius:6px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* ---------- Top bar + ink-trail map ---------- */
+.top{position:sticky;top:0;z-index:20;background:rgba(54,54,54,.96);backdrop-filter:blur(6px);border-bottom:1px solid #4f4f4f}
+.topin{max-width:1100px;margin:0 auto;padding:10px max(4vw,14px) 8px}
+.brand{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand b{font-weight:600;font-size:15px;letter-spacing:-.01em}
+.brand b span{color:var(--muted);font-weight:400}
+.menubtn{font:inherit;font-size:14px;font-weight:500;color:var(--ink);background:var(--panel);border:1px solid #5a5a5a;border-radius:999px;padding:8px 16px;min-height:44px;cursor:pointer}
+.menubtn:hover{border-color:var(--soft)}
+.map{position:relative;margin:6px 0 2px;height:64px}
+.trail,.trailfill{position:absolute;left:22px;right:22px;top:31px;height:4px;border-radius:4px;background:#5a5a5a}
+.trailfill{right:auto;width:0;background:linear-gradient(90deg,var(--soft),var(--hot));transition:width .9s ease}
+.nodes{position:absolute;inset:0;display:flex;justify-content:space-between;list-style:none;margin:0;padding:0}
+.node{width:44px;height:44px;margin-top:11px;border-radius:50%;border:2px solid #6a6a6a;background:var(--bg);color:var(--muted);font:700 19px/1 Poppins,system-ui,sans-serif;cursor:pointer;display:grid;place-items:center;padding:0}
+.node[disabled]{cursor:not-allowed;opacity:.75}
+.node.visited{border-color:var(--soft);background:var(--soft);color:#fff}
+.node.active{border-color:#fff;background:var(--hot);color:#fff;box-shadow:0 0 0 5px rgba(232,23,93,.25)}
+.walker{position:absolute;top:-6px;width:34px;height:34px;transform:translateX(-50%);transition:left .9s cubic-bezier(.5,.1,.3,1);pointer-events:none}
+.walker svg{width:34px;height:34px;border-radius:50%;background:var(--panel);border:2px solid var(--hot)}
+.walker.step svg{animation:bob .3s ease-in-out 3}
+@keyframes bob{50%{transform:translateY(-4px)}}
+
+/* Station menu */
+.menu{position:fixed;inset:0;z-index:40;background:rgba(20,20,20,.6);display:none}
+.menu.open{display:block}
+.menu nav{position:absolute;right:max(4vw,12px);top:64px;width:min(340px,92vw);background:var(--panel);border-radius:16px;padding:14px;box-shadow:0 20px 50px rgba(0,0,0,.45)}
+.menu h2{font-size:13px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--ink2);margin:4px 8px 8px}
+.menu button.it{display:flex;gap:12px;align-items:center;width:100%;min-height:44px;text-align:left;background:none;border:0;border-radius:10px;color:var(--ink);font:inherit;font-size:15px;padding:6px 8px;cursor:pointer}
+.menu button.it:hover:not([disabled]){background:#535353}
+.menu button.it[disabled]{color:var(--ink2);opacity:.6;cursor:not-allowed}
+.menu .n{width:28px;height:28px;flex:none;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:700;background:#5a5a5a}
+.menu .it.v .n{background:var(--soft);color:#fff}
+
+/* ---------- Stations ---------- */
+main{max-width:1100px;margin:0 auto;padding:0 max(4vw,14px) 80px}
+.station{display:none;padding-top:clamp(28px,5vw,56px)}
+.station.on{display:block;animation:enter .6s ease both}
+@keyframes enter{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.hero{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 230px;gap:clamp(16px,4vw,48px);align-items:end;max-width:960px;margin:0 auto 34px}
+#s1 .hero{background:radial-gradient(120% 90% at 70% 0%,rgba(232,23,93,.28),rgba(204,82,122,.12) 40%,rgba(54,54,54,0) 75%);border-radius:24px;padding:clamp(18px,4vw,40px) clamp(16px,4vw,40px) 0}
+.label{font-size:13px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin:0 0 10px;display:flex;align-items:center;gap:10px}
+.label::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--hot)}
+h1,h2.title{font-weight:700;letter-spacing:-.025em;line-height:1.08;margin:0 0 14px;font-size:clamp(32px,5.4vw,52px);text-wrap:balance}
+h1 u,h2.title u{text-decoration:none;background:linear-gradient(transparent 62%,rgba(232,23,93,.55) 62%)}
+.dek{color:var(--ink2);font-size:18px;margin:0 0 22px;max-width:560px}
+.guide{position:relative}
+.guide svg.tom{display:block;width:100%;height:auto;max-height:340px}
+.bubble{position:relative;background:var(--panel);border-radius:18px;padding:12px 16px;font-size:15px;line-height:1.5;margin-bottom:10px;color:var(--ink)}
+.bubble::after{content:"";position:absolute;bottom:-9px;left:50%;border:10px solid transparent;border-top-color:var(--panel);border-bottom:0;transform:translateX(-50%)}
+.col{max-width:var(--col);margin:0 auto}
+.col h3{font-size:24px;font-weight:600;letter-spacing:-.015em;line-height:1.25;margin:40px 0 10px}
+.col p{margin:0 0 18px}
+.cap{font-size:14px;color:var(--muted);line-height:1.5}
+.panel{background:var(--panel);border-radius:18px;padding:20px 22px}
+.panel .cap{color:var(--ink2)}
+.pull{margin:34px 0;padding:4px 0 4px 22px;border-left:4px solid var(--hot);font-weight:300;font-style:italic;font-size:clamp(22px,3vw,27px);line-height:1.4;letter-spacing:-.01em}
+.pull cite{display:block;font-style:normal;font-weight:400;font-size:14px;color:var(--muted);margin-top:8px;letter-spacing:0}
+.ph{border:2px dashed var(--soft);border-radius:14px;padding:14px 18px;margin:22px 0;font-size:15px;color:var(--ink)}
+.ph b{color:#fff;font-weight:600}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:18px 0 26px}
+.facts div{background:var(--panel);border-radius:14px;padding:14px 16px;font-size:15px;line-height:1.5}
+.facts b{display:block;font-size:12.5px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--ink2);margin-bottom:4px}
+ol.rules{padding-left:22px;margin:0 0 18px}
+ol.rules li{margin-bottom:6px}
+
+/* Buttons */
+.btn{font:700 19px/1 Poppins,system-ui,sans-serif;color:#fff;background:var(--hot);border:0;border-radius:999px;padding:14px 26px;min-height:48px;cursor:pointer;transition:background .2s,transform .2s}
+.btn:hover:not([disabled]){background:var(--soft);transform:translateY(-1px)}
+.btn[disabled]{background:#5a5a5a;color:var(--ink2);cursor:not-allowed}
+.btn.ghost{background:transparent;border:2px solid var(--soft);color:var(--ink)}
+.next{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin:44px auto 0;max-width:var(--col)}
+.next .cap{margin:0}
+
+/* Flip cards */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:16px;max-width:960px;margin:22px auto 8px}
+.flip{position:relative;height:270px;perspective:1000px;background:none;border:0;padding:0;cursor:pointer;font:inherit;color:inherit;text-align:left}
+.face{position:absolute;inset:0;border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:10px;backface-visibility:hidden;transition:transform .7s cubic-bezier(.3,.7,.2,1)}
+.front{background:var(--panel);border:1px solid #585858}
+.back{background:linear-gradient(160deg,#5a2c3e,#474747 70%);border:2px solid var(--soft);transform:rotateY(180deg)}
+.flip.on .front{transform:rotateY(-180deg)}
+.flip.on .back{transform:rotateY(0)}
+.tag{font-size:12.5px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--ink2)}
+.head{font-weight:600;font-size:17px;line-height:1.35}
+.face p{margin:0;font-size:15px;line-height:1.55}
+.hint{margin-top:auto;font-size:13px;color:var(--ink2)}
+
+/* Table */
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:15px;line-height:1.45;margin:10px 0}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid #5a5a5a;vertical-align:top}
+th{font-weight:600;color:#fff;font-size:14px}
+td.hid{color:var(--ink2);font-style:italic}
+tr.miss td{background:rgba(232,23,93,.14);color:#fff}
+.chips{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
+.chip{font:500 15px/1.3 Poppins,system-ui,sans-serif;color:var(--ink);background:var(--bg);border:2px solid #6a6a6a;border-radius:999px;padding:10px 16px;min-height:44px;cursor:pointer}
+.chip[aria-pressed=true]{border-color:var(--hot);background:rgba(232,23,93,.2);color:#fff}
+
+/* Passages */
+.pass{background:var(--panel);border-radius:18px;padding:18px 20px;margin:16px 0}
+.pass blockquote{margin:0 0 12px;font-size:16.5px;line-height:1.65}
+.pass .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.verdict{display:none;margin-top:12px;padding-top:12px;border-top:1px solid #5d5d5d;font-size:15px;line-height:1.55}
+.revealed .verdict{display:block}
+
+/* Lab */
+.lab{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;margin:18px 0}
+fieldset{border:0;margin:0;padding:0}
+legend{font-size:13px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.opt{display:flex;flex-direction:column;gap:8px}
+.opt label{display:flex;align-items:center;gap:10px;background:var(--panel);border:2px solid transparent;border-radius:12px;padding:10px 14px;min-height:44px;cursor:pointer;font-size:15.5px}
+.opt input{accent-color:var(--hot);width:18px;height:18px}
+.opt label:has(input:checked){border-color:var(--hot)}
+.result{background:var(--panel);border-radius:18px;padding:20px 22px;border-top:4px solid var(--hot)}
+.result h4{margin:0 0 4px;font-size:19px;font-weight:600}
+.gl{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin:12px 0}
+.gl div{background:var(--bg);border-radius:12px;padding:12px 14px;font-size:15px;line-height:1.55}
+.gl b{display:block;font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;font-weight:500;color:var(--ink2);margin-bottom:4px}
+
+/* Ink drops */
+.drops{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:14px;max-width:960px;margin:20px auto}
+.drop{position:relative;text-align:left;font:inherit;color:inherit;background:var(--panel);border:2px solid var(--soft);border-radius:18px;padding:18px 18px 16px 18px;cursor:pointer;min-height:170px}
+.drop .q{font-weight:300;font-style:italic;font-size:19px;line-height:1.4}
+.drop .src{font-size:13px;color:var(--ink2);margin-top:8px}
+.drop .why{display:none;font-size:14.5px;line-height:1.5;margin-top:10px;padding-top:10px;border-top:1px solid #5d5d5d}
+.drop.got{border-color:var(--hot);background:linear-gradient(160deg,#55303f,#474747 65%)}
+.drop.got .why{display:block}
+.drop .ink{position:absolute;top:14px;right:14px;width:18px;height:24px}
+.drop.got .ink path{fill:var(--hot)}
+.work{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px;margin:16px 0}
+.work div{background:var(--panel);border-radius:14px;padding:14px 16px;font-size:15px;line-height:1.55}
+.work b{display:block;font-weight:600;margin-bottom:4px}
+
+/* Finale */
+.badge{display:flex;gap:20px;align-items:center;background:var(--panel);border-radius:22px;padding:20px 24px;margin:20px 0;border:2px solid var(--hot)}
+.badge svg{width:96px;height:96px;flex:none}
+.badge p{margin:0;font-size:19px;font-weight:600;line-height:1.4}
+.refs p{padding-left:2em;text-indent:-2em;font-size:15px;line-height:1.6;margin:0 0 12px;overflow-wrap:anywhere}
+.confetti{position:absolute;inset:0;pointer-events:none}
+
+@media (max-width:760px){
+  .hero{grid-template-columns:1fr;}
+  .guide{display:grid;grid-template-columns:120px minmax(0,1fr);gap:12px;align-items:end;order:-1}
+  .guide svg.tom{max-height:190px}
+  .bubble::after{left:-9px;top:50%;bottom:auto;border:10px solid transparent;border-right-color:var(--panel);border-left:0;transform:translateY(-50%)}
+  .lab,.gl{grid-template-columns:1fr}
+  .node{width:36px;height:36px;margin-top:15px;font-size:15px}
+  .trail,.trailfill{left:18px;right:18px}
+  body{font-size:17px}
+  .brand b span{display:none}
+}
+@media (max-width:600px){
+  .panel.scroll{overflow-x:visible}
+  table thead{display:none}
+  table tr{display:block;padding:12px 0;border-bottom:1px solid #5a5a5a}
+  table th[scope=row],table td{display:block;border:0;padding:2px 0}
+  table th[scope=row]{font-size:16px;padding-bottom:6px}
+  table td::before{content:attr(data-l);display:block;font-size:12.5px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--ink2)}
+  table td+td{margin-top:8px}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+
+<!-- Shared SVG gradients for every Tomiris pose -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="hairG" gradientUnits="userSpaceOnUse" x1="0" y1="36" x2="0" y2="212">
+      <stop offset="0" stop-color="#110c0a"/><stop offset=".35" stop-color="#25150e"/><stop offset=".7" stop-color="#5e2e16"/><stop offset="1" stop-color="#9c4f26"/>
+    </linearGradient>
+    <linearGradient id="suitG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7a4d32"/><stop offset="1" stop-color="#583521"/>
+    </linearGradient>
+    <radialGradient id="skinG" cx=".45" cy=".4" r=".7">
+      <stop offset="0" stop-color="#f1d1b3"/><stop offset="1" stop-color="#d9a985"/>
+    </radialGradient>
+  </defs>
+</svg>
+
+<header class="top">
+  <div class="topin">
+    <div class="brand">
+      <b>The Writer's Map <span>· a reflection by Tomiris Tutkabayeva</span></b>
+      <button class="menubtn" id="menuBtn" aria-haspopup="true" aria-expanded="false" aria-controls="menu">Stations</button>
+    </div>
+    <div class="map" aria-label="Journey progress">
+      <div class="trail"></div><div class="trailfill" id="fill"></div>
+      <ol class="nodes" id="nodes"></ol>
+      <div class="walker" id="walker" aria-hidden="true"></div>
+    </div>
+  </div>
+</header>
+
+<div class="menu" id="menu" role="dialog" aria-modal="true" aria-label="Jump to a station">
+  <nav><h2>Jump to a station</h2><div id="menuList"></div></nav>
+</div>
+
+<main id="main">
+
+<!-- ================= STATION 1 ================= -->
+<section class="station" id="s1" data-n="1" aria-labelledby="t1">
+  <div class="hero">
+    <div>
+      <p class="label">Station 1 · Arrival</p>
+      <h1 id="t1">Jumping off points: <u>what AI disruption</u> can teach a writer</h1>
+      <p class="dek">A reflection on the AIM Lab Lecture Series talk by Dr. Sam Meekings, “Jumping Off Points: Making Opportunities from AI Disruptions in the Writing Classroom,” Northwestern University in Qatar.</p>
+    </div>
+    <div class="guide">
+      <div class="bubble">Hi, I'm Tomiris. Walk the map with me. Every station unlocks the next one.</div>
+      <div data-pose="wave"></div>
+    </div>
+  </div>
+  <div class="col">
+    <h3>The argument</h3>
+    <p>Generative AI disrupts writing, and students already use it.</p>
+    <p>Meekings argues that teachers should therefore demonstrate, discuss and dissect AI in class instead of banning it.</p>
+    <p>His 2026 article makes the same case: process, authorship and originality need new definitions (Meekings, 2026).</p>
+
+    <h3>My position</h3>
+    <p>I agree with this method, because it is how a journalist treats any powerful source.</p>
+    <p>I add one condition: studying AI in class must also mean studying how it was built and whose work it used.</p>
+
+    <h3>How to play</h3>
+    <ol class="rules">
+      <li>Read the station, then complete its short task.</li>
+      <li>Press the pink button to unlock the next station.</li>
+      <li>Use the map or the Stations menu to go back at any time.</li>
+    </ol>
+  </div>
+  <div class="next"><button class="btn" data-go="2">Start the journey</button></div>
+</section>
+
+<!-- ================= STATION 2 ================= -->
+<section class="station" id="s2" data-n="2" aria-labelledby="t2">
+  <div class="hero">
+    <div>
+      <p class="label">Station 2 · The Disruption</p>
+      <h2 class="title" id="t2">Four headlines, <u>one problem of trust</u></h2>
+      <p class="dek">One slide in the lecture showed four news stories from autumn 2026. <b>Your task:</b> flip all four cards to see how each disruption becomes a lesson.</p>
+    </div>
+    <div class="guide">
+      <div class="bubble">Flip all four cards. Then the path to Station 3 opens.</div>
+      <div data-pose="think"></div>
+    </div>
+  </div>
+  <div class="cards" id="cards"></div>
+  <p class="cap" style="text-align:center" id="flipCount" aria-live="polite"></p>
+  <div class="col">
+    <h3>What the cards have in common</h3>
+    <p>Meekings names the costs himself: pirated training books, blurred plagiarism, underpaid data workers and environmental damage (Meekings, 2026, p. 2).</p>
+    <p>The four headlines share one theme, and it is trust.</p>
+    <p>They ask who supplied the words, who gave consent, and who can prove they wrote their own book.</p>
+  </div>
+  <div class="next"><button class="btn" data-go="3" id="go3" disabled>Continue to Station 3</button><p class="cap" id="lock2">Flip all four cards to continue.</p></div>
+</section>
+
+<!-- ================= STATION 3 ================= -->
+<section class="station" id="s3" data-n="3" aria-labelledby="t3">
+  <div class="hero">
+    <div>
+      <p class="label">Station 3 · Human or Machine?</p>
+      <h2 class="title" id="t3">What the comparison <u>leaves out</u></h2>
+      <p class="dek"><b>Your task:</b> add the rows the table is missing, then decide which of four passages sound human.</p>
+    </div>
+    <div class="guide">
+      <div class="bubble">Guess honestly. The guessing itself is the lesson.</div>
+      <div data-pose="point"></div>
+    </div>
+  </div>
+  <div class="col">
+    <h3>Part A · “What is missing?”</h3>
+    <p>The lecture showed this comparison of AI and human writing from Stojanović et al. (2023) and asked one question: what is missing?</p>
+    <div class="panel scroll">
+      <table>
+        <thead><tr><th scope="col">Characteristic</th><th scope="col">Artificial intelligence</th><th scope="col">Human</th></tr></thead>
+        <tbody id="tbl"></tbody>
+      </table>
+      <p class="cap">Source: Stojanović et al. (2023).</p>
+    </div>
+    <p style="margin-top:22px">Tap every row you would add.</p>
+    <div class="chips" id="chips"></div>
+    <div id="missNote" class="panel" style="display:none" aria-live="polite">
+      <p style="margin:0 0 10px">Every row in the table measures the output: speed, volume, consistency.</p>
+      <p style="margin:0 0 10px">No row measures the process, the person, or the source of the words.</p>
+      <p style="margin:0">That gap is exactly what Meekings asks us to look at: writing is the whole process, not only the text that comes out at the end (Meekings, 2026, p. 4).</p>
+    </div>
+
+    <h3>Part B · Human or machine?</h3>
+    <p>Mark each passage, then press “Reveal the answers.”</p>
+    <div id="passages"></div>
+    <div class="next" style="margin-top:18px"><button class="btn ghost" id="reveal" disabled>Reveal the answers</button><p class="cap" id="guessCount" aria-live="polite"></p></div>
+    <div id="twist" class="panel" style="display:none;margin-top:22px" aria-live="polite">
+      <p style="margin:0 0 10px"><b>Plot twist:</b> all four passages were drafted with an AI system for this game, including the two that sound human.</p>
+      <p style="margin:0 0 10px">Concrete details make writing read as human, and a model can imitate them on request. Guessing does not work.</p>
+      <p style="margin:0">The same problem hit the novelist Thélyson Orélien in 2026: detectors disagreed about his prize-winning book (Schofield, 2026), and his Canadian publisher cut ties with him anyway (Casassus, 2026).</p>
+    </div>
+    <div class="pull">Demonstrate, discuss, dissect: look at how a text was made, not only at what it is.<cite>Meekings’ method, in one line</cite></div>
+  </div>
+  <div class="next"><button class="btn" data-go="4" id="go4" disabled>Continue to Station 4</button><p class="cap" id="lock3">Mark all four passages and reveal the answers to continue.</p></div>
+</section>
+
+<!-- ================= STATION 4 ================= -->
+<section class="station" id="s4" data-n="4" aria-labelledby="t4">
+  <div class="hero">
+    <div>
+      <p class="label">Station 4 · The Experiment Lab</p>
+      <h2 class="title" id="t4">Prompt remix: <u>what you gain, what you lose</u></h2>
+      <p class="dek"><b>Your task:</b> choose a writing task and an AI use. The result shows what you gain and what you lose.</p>
+    </div>
+    <div class="guide">
+      <div class="bubble">Try “Draft” on the personal essay. Then try “Critique.”</div>
+      <div data-pose="laptop"></div>
+    </div>
+  </div>
+  <div class="col">
+    <p>Meekings divides writing into three stages: planning, translating and reviewing (Meekings, 2026, p. 3).</p>
+    <p>AI helps most with planning and reviewing.</p>
+    <p>Translating, the move from idea to sentence, is where it does the most harm, because a chatbot that writes the text replaces the writer's thinking (Meekings, 2026, p. 5).</p>
+    <form class="lab" id="lab" onsubmit="return false">
+      <fieldset><legend>Writing task</legend><div class="opt" id="taskOpts"></div></fieldset>
+      <fieldset><legend>AI use</legend><div class="opt" id="useOpts"></div></fieldset>
+    </form>
+    <div class="result" id="labOut" aria-live="polite"></div>
+    <h3>What the lab shows</h3>
+    <p>As a critic, AI works like a workshop reader.</p>
+    <p>As a drafter, it removes the stage where I find out what I think.</p>
+  </div>
+  <div class="next"><button class="btn" data-go="5">Continue to Station 5</button></div>
+</section>
+
+<!-- ================= STATION 5 ================= -->
+<section class="station" id="s5" data-n="5" aria-labelledby="t5">
+  <div class="hero">
+    <div>
+      <p class="label">Station 5 · The Reading Room</p>
+      <h2 class="title" id="t5">Collect the <u>ink drops</u></h2>
+      <p class="dek"><b>Your task:</b> tap all four quote cards to collect them and read why each one matters.</p>
+    </div>
+    <div class="guide">
+      <div class="bubble">These are the lines I underlined twice.</div>
+      <div data-pose="read"></div>
+    </div>
+  </div>
+  <div class="col">
+    <h3>The core reading</h3>
+    <p>Meekings' article “AI Won't Eat Your Brain” is the written version of the lecture's argument (Meekings, 2026).</p>
+    <p>It redefines three concepts.</p>
+    <p><b>Process</b> becomes the centre of teaching and assessment, with prompt logs, messy drafts and reflexive writing valued over the final product.</p>
+    <p><b>Authorship</b> is widened: Meekings borrows Sharples' description of the writer as a designer of text and imagines the author as the manager of a creative team.</p>
+    <p><b>Originality</b> shifts towards craft and diversity, because AI reproduces Western defaults such as the three-act structure and conflict as the engine of every story.</p>
+    <p>His answer is to bring in other traditions, such as the nested tales of the <i>1001 Nights</i> or the four-part Japanese <i>kishōtenketsu</i>.</p>
+  </div>
+  <div class="drops" id="drops"></div>
+  <p class="cap" style="text-align:center" id="inkCount" aria-live="polite"></p>
+  <div class="col">
+    <h3>His wider work, in four drops</h3>
+    <div class="work">
+      <div><b><i>Wonder and Loss</i> (2025)</b>Four parts: writing as discovery, transformation, renewal and magic. Writing is a path through experience, which is why handing it to a machine costs something.</div>
+      <div><b>Barriers to creative writing in Qatar (2023)</b>Interviews with students point to socio-cultural barriers and internal conflicts. The classroom he describes is our classroom.</div>
+      <div><b>Digital literacy in the classroom (2021)</b>Social media as a lab for voice and world-building, with its problems named. AI is the next platform for the same method.</div>
+      <div><b>The workshop in the 21st century (2026)</b>A co-edited critique of the Iowa workshop model. Feedback has always been collaborative; AI becomes one more reader.</div>
+    </div>
+  </div>
+  <div class="next"><button class="btn" data-go="6" id="go6" disabled>Continue to Station 6</button><p class="cap" id="lock5">Collect every ink drop to continue.</p></div>
+</section>
+
+<!-- ================= STATION 6 ================= -->
+<section class="station" id="s6" data-n="6" aria-labelledby="t6">
+  <div class="hero">
+    <div>
+      <p class="label">Station 6 · My Reflection</p>
+      <h2 class="title" id="t6">Where I agree and <u>where I push back</u></h2>
+      <p class="dek">What the talk means for me as a journalism student who writes about AI startups.</p>
+    </div>
+    <div class="guide">
+      <div class="bubble">This is the part I wrote for myself.</div>
+      <div data-pose="think"></div>
+    </div>
+  </div>
+  <div class="col">
+    <h3>Where I agree</h3>
+    <p>The strongest idea in the talk is the shift from product to process.</p>
+    <p>In journalism, the published story is the smallest part of the work; its value lies in the calls, documents and interviews behind it.</p>
+    <p>Meekings' distinction between translating and generating names this clearly.</p>
+    <p>I also agree that diversity matters more than originality.</p>
+    <p>AI drafts drift towards one familiar Western shape, while the Kazakh <i>aitys</i>, an improvised poetic duel, follows a call-and-response logic no default prompt suggests.</p>
+    <p>My own traditions are a resource that AI does not have.</p>
+
+    <h3>Where I push back</h3>
+    <p>AI is permanent, but the terms of its use are still being decided in courts, libraries and writers' unions.</p>
+    <p>A judge approved a $1.5 billion settlement over pirated books while ruling that training on lawfully acquired books was legal (Associated Press, 2026).</p>
+    <p>The Society of Authors helped launch an ethical AI charter and left it within days after its members objected (Brown, 2026).</p>
+    <p>As Dean Marwan Kraidy said at NU-Q's Rawabet conference, “Nothing is inevitable” (Northwestern University in Qatar, 2025c).</p>
+    <p>Teaching AI therefore means teaching students to question these terms, not only to use the tools.</p>
+    <p>AI as a critic helps only a student who can still judge the critique, a risk Meekings has discussed with Spencer Striker as “cognitive debt” (Northwestern University in Qatar, n.d.-b).</p>
+    <p>Prompt logs prove authorship better than detectors, but only when students can declare AI use without penalty (Meekings, 2026, p. 11).</p>
+
+    <div class="pull">AI can read my draft. It does not write it.<cite>My takeaway</cite></div>
+
+    <h3>What this means for me as a journalist</h3>
+    <p>The table at Station 3 has no row for accountability, and journalism is built on that row.</p>
+    <p>In my coverage of AI startups for Forbes Kazakhstan, I treat AI output as a source: fast, useful, unverified and biased.</p>
+    <p>A source can inform a story, but it cannot take responsibility for it.</p>
+    <p>The reporting and the writing stay mine.</p>
+  </div>
+  <div class="next"><button class="btn" data-go="7">Continue to the finale</button></div>
+</section>
+
+<!-- ================= STATION 7 ================= -->
+<section class="station" id="s7" data-n="7" aria-labelledby="t7">
+  <div class="hero" style="position:relative">
+    <div>
+      <p class="label">Station 7 · Finale</p>
+      <h2 class="title" id="t7">You reached <u>the end of the map</u></h2>
+      <p class="dek">Thank you for walking it with me. Here are your badge and the references.</p>
+    </div>
+    <div class="guide">
+      <div class="bubble">We made it! Take the badge with you.</div>
+      <div data-pose="celebrate"></div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="badge">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <circle cx="50" cy="50" r="46" fill="#E8175D"/><circle cx="50" cy="50" r="38" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="3 4"/>
+        <path d="M50 22c8 14 16 22 16 34a16 16 0 0 1-32 0c0-12 8-20 16-34z" fill="#fff"/>
+        <path d="M44 58a7 7 0 0 0 7 7" stroke="#E8175D" stroke-width="3" fill="none" stroke-linecap="round"/>
+      </svg>
+      <div><p class="tag" style="margin-bottom:4px">Badge earned · Ink Keeper</p><p>Writing is the whole process. Keep the hard part human.</p></div>
+    </div>
+    <div class="next" style="margin:10px 0 0"><button class="btn ghost" id="copyBadge">Copy the takeaway</button><span class="cap" id="copyMsg" aria-live="polite"></span></div>
+
+    <h3>References</h3>
+    <div class="refs" id="refs"></div>
+    <div class="next" style="margin:24px 0 0"><button class="btn ghost" id="restart">Walk the map again</button></div>
+  </div>
+</section>
+</main>
+
+<script>
+{
+/* ---------- Tomiris: original mascot, built from shared parts + pose-specific arms ---------- */
+const SUIT='#6a4129', SKIN='url(#skinG)', HAND='#e2b694';
+function arm(d){return `<path d="${d}" stroke="${SUIT}" stroke-width="15" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`;}
+function hand(x,y,r=6.5){return `<g><circle cx="${x}" cy="${y-5}" r="${r+1.2}" fill="${SUIT}"/><ellipse cx="${x}" cy="${y}" rx="${r}" ry="${r+1}" fill="${HAND}"/><ellipse cx="${x-r+1}" cy="${y-2}" rx="2.4" ry="3.6" fill="${HAND}" transform="rotate(-25 ${x-r+1} ${y-2})"/><path d="M${x-2.5} ${y+r-1.5}v-3M${x} ${y+r-0.8}v-3.4M${x+2.5} ${y+r-1.5}v-3" stroke="#c99878" stroke-width=".9" stroke-linecap="round"/></g>`;}
+const POSES={
+  wave:()=>arm('M72 130 Q62 168 66 200')+hand(66,204)+arm('M128 130 Q150 110 156 78')+`<g fill="${HAND}"><ellipse cx="158" cy="66" rx="8" ry="10"/><rect x="151" y="50" width="3.6" height="12" rx="1.8" transform="rotate(-12 153 56)"/><rect x="156" y="47" width="3.6" height="13" rx="1.8"/><rect x="161" y="49" width="3.6" height="12" rx="1.8" transform="rotate(10 163 55)"/></g><path d="M172 54 q6 6 0 14 M178 50 q8 10 0 22" stroke="#E8175D" stroke-width="2.4" fill="none" stroke-linecap="round"/>`,
+  point:()=>arm('M72 130 Q52 156 76 174')+hand(78,175)+arm('M128 130 Q160 140 186 128')+hand(190,127)+`<rect x="192" y="124" width="12" height="4" rx="2" fill="${HAND}"/>`,
+  read:()=>arm('M72 130 Q66 162 86 170')+arm('M128 130 Q134 162 114 170')+`<g transform="rotate(-4 100 165)"><path d="M70 150 L100 156 L130 150 L130 182 L100 188 L70 182 Z" fill="#CC527A"/><path d="M73 151 L100 157 L100 184 L73 179 Z" fill="#f5ece2"/><path d="M127 151 L100 157 L100 184 L127 179 Z" fill="#fff8f0"/><path d="M78 160h16M78 166h16M78 172h12M106 160h16M106 166h16M106 172h12" stroke="#b9a99a" stroke-width="1.4"/></g>`+hand(84,174)+hand(116,174),
+  think:()=>arm('M72 130 Q72 166 122 166')+hand(124,165)+arm('M128 130 Q150 160 112 120')+hand(110,116,6)+`<g fill="#CC527A"><circle cx="160" cy="48" r="4"/><circle cx="172" cy="34" r="6"/><circle cx="186" cy="16" r="9"/></g>`,
+  laptop:()=>`<path d="M66 140 L134 140 L128 176 L72 176 Z" fill="#2a2a2a"/><path d="M70 143 L130 143 L125 172 L75 172 Z" fill="#474747"/><circle cx="100" cy="157" r="5" fill="#E8175D"/><rect x="58" y="176" width="84" height="7" rx="3" fill="#5a5a5a"/>`+arm('M72 130 Q60 166 80 178')+arm('M128 130 Q140 166 120 178')+hand(82,179)+hand(118,179),
+  celebrate:()=>arm('M72 130 Q56 104 48 70')+hand(46,62)+arm('M128 130 Q144 104 152 70')+hand(154,62)+`<g><rect x="26" y="40" width="6" height="10" fill="#E8175D" transform="rotate(20 29 45)"/><rect x="170" y="36" width="6" height="10" fill="#CC527A" transform="rotate(-25 173 41)"/><circle cx="36" cy="22" r="3.5" fill="#F2F0F0"/><circle cx="164" cy="18" r="3.5" fill="#E8175D"/><rect x="100" y="8" width="5" height="9" fill="#CC527A" transform="rotate(35 102 12)"/></g>`,
+  idle:()=>arm('M72 130 Q62 168 66 200')+hand(66,204)+arm('M128 130 Q138 168 134 200')+hand(134,204)
+};
+function tomiris(pose='idle',vb='0 0 210 300',label=true){
+  const front=true;
+  const beads=Array.from({length:15},(_,k)=>{const t=k/14,x=(1-t)**2*89+2*(1-t)*t*100+t*t*111,y=(1-t)**2*124+2*(1-t)*t*148+t*t*124;return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.35" fill="#0c0b0b"/>`}).join('');
+  const body=`
+  <path d="M80 205 L76 284 L96 284 L100 214 L104 284 L124 284 L120 205 Z" fill="#583521"/>
+  <path d="M100 214 L100 280" stroke="#45291a" stroke-width="1.2"/>
+  <ellipse cx="85" cy="288" rx="13" ry="5" fill="#1c1414"/><ellipse cx="115" cy="288" rx="13" ry="5" fill="#1c1414"/>
+  <path d="M58 78 C54 38 146 38 142 78 C150 110 157 150 153 186 C147 197 137 190 130 199 C120 192 111 201 100 195 C89 201 80 192 70 199 C63 190 53 197 47 186 C43 150 50 110 58 78 Z" fill="url(#hairG)"/>
+  <path d="M56 140 C51 160 54 175 51 186 M146 140 C150 160 147 175 150 186 M62 110 C58 128 60 140 57 156" stroke="#b5602f" stroke-width="2" fill="none" opacity=".45" stroke-linecap="round"/>
+  <rect x="92" y="106" width="16" height="22" fill="#d6a47f"/>
+  <path d="M68 132 Q100 116 132 132 L130 212 L70 212 Z" fill="url(#suitG)"/>
+  <path d="M90 123 L100 154 L110 123 Z" fill="#141010"/>
+  <path d="M90 123 L100 154 L85 172 L78 134 Z" fill="#45291a"/><path d="M110 123 L100 154 L115 172 L122 134 Z" fill="#45291a"/>
+  <path d="M100 154 L100 210" stroke="#45291a" stroke-width="1.2"/><circle cx="100" cy="184" r="2.6" fill="#2b190f"/>
+  ${beads}<path d="M100 137 q-2.2 3 0 5.5 q2.2 -2.5 0 -5.5 Z" fill="#b58a4a"/>
+  <ellipse cx="100" cy="79" rx="27" ry="32" fill="${SKIN}"/>
+  <g fill="#a8653f" opacity=".38"><circle cx="84" cy="90" r=".8"/><circle cx="88" cy="93" r=".7"/><circle cx="82" cy="94" r=".7"/><circle cx="116" cy="90" r=".8"/><circle cx="112" cy="93" r=".7"/><circle cx="118" cy="94" r=".7"/><circle cx="97" cy="88" r=".6"/><circle cx="103" cy="89" r=".6"/></g>
+  <path d="M68 94 C61 56 84 33 112 36 C135 39 143 62 134 94 C131 77 126 64 113 54 C104 61 88 61 80 65 C73 71 70 80 68 94 Z" fill="url(#hairG)"/>
+  <path d="M113 54 C114 47 116 42 119 38" stroke="#070505" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+  <path d="M84 45 C97 38 114 39 126 49" stroke="#6b4232" stroke-width="2.2" fill="none" opacity=".55" stroke-linecap="round"/>
+  <path d="M69 86 C61 112 66 142 59 170 C56 187 63 201 70 212 C77 197 81 184 79 168 C81 140 77 112 79 92 Z" fill="url(#hairG)"/>
+  <path d="M131 86 C139 112 135 142 141 170 C144 187 137 201 130 212 C123 197 119 184 121 168 C119 140 123 112 121 92 Z" fill="url(#hairG)"/>
+  <path d="M65 150 C62 166 66 182 69 202 M135 150 C138 166 134 182 131 202" stroke="#c46c36" stroke-width="2" fill="none" opacity=".5" stroke-linecap="round"/>
+  <path d="M82 71.5 Q89 68 97 69.2 L97 71.4 Q89.5 70.6 82.6 73.4 Z" fill="#2a1a14"/>
+  <path d="M118 71.5 Q111 68 103 69.2 L103 71.4 Q110.5 70.6 117.4 73.4 Z" fill="#2a1a14"/>
+  <ellipse cx="90" cy="78.5" rx="7.5" ry="3.6" fill="#7a5150" opacity=".22"/><ellipse cx="110" cy="78.5" rx="7.5" ry="3.6" fill="#7a5150" opacity=".22"/>
+  <path d="M84 80.5 Q90 76.5 96 80.5 Q90 83.5 84 80.5 Z" fill="#fff"/><path d="M104 80.5 Q110 76.5 116 80.5 Q110 83.5 104 80.5 Z" fill="#fff"/>
+  <circle cx="90" cy="80.2" r="2.6" fill="#1e130f"/><circle cx="110" cy="80.2" r="2.6" fill="#1e130f"/>
+  <circle cx="91" cy="79.3" r=".75" fill="#fff"/><circle cx="111" cy="79.3" r=".75" fill="#fff"/>
+  <path d="M96.5 80.2 Q90 75.8 83.5 80.2 L80.4 78" stroke="#120c0a" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+  <path d="M103.5 80.2 Q110 75.8 116.5 80.2 L119.6 78" stroke="#120c0a" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+  <path d="M100 85 Q98 92 101.5 94" stroke="#bf8966" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+  <circle cx="85" cy="94" r="5" fill="#e59a8f" opacity=".22"/><circle cx="115" cy="94" r="5" fill="#e59a8f" opacity=".22"/>
+  <path d="M93 101 Q100 98.6 107 101 Q100 106 93 101 Z" fill="#c07a78"/><path d="M93.5 101.2 Q100 102.8 106.5 101.2" stroke="#965453" stroke-width=".8" fill="none"/>`;
+  const arms=(POSES[pose]||POSES.idle)();
+  const a=label?`role="img" aria-label="Tomiris, illustrated guide, ${pose==='idle'?'standing':pose}"`:'aria-hidden="true"';
+  return `<svg class="tom" viewBox="${vb}" ${a}>${front?body+arms:arms+body}</svg>`;
+}
+document.querySelectorAll('[data-pose]').forEach(el=>{el.outerHTML=tomiris(el.dataset.pose)});
+document.getElementById('walker').innerHTML=tomiris('idle','58 30 84 84',false);
+
+/* ---------- Content data ---------- */
+const STATIONS=['Arrival','The Disruption','Human or Machine?','The Experiment Lab','The Reading Room','My Reflection','Finale'];
+const CARDS=[
+  {h:'Judge approves a $1.5B Anthropic settlement over pirated books used to train the Claude chatbot',s:'Associated Press',d:'The books that teach machines to write were downloaded from pirate sites, not licensed.',o:'Ask where a text’s knowledge comes from. In class, trace one AI answer back to the kinds of sources it may rest on.'},
+  {h:'Uproar in France over award-winning author accused of using AI',s:'BBC',d:'Suspicion now falls on human writers, and AI detectors disagree with each other.',o:'Make process visible. Notes, drafts and prompt logs prove authorship better than any detector.'},
+  {h:'Oxford lets OpenAI train its AI models on Bodleian Library',s:'The Guardian',d:'An institution shared its archive for training without saying so when it announced the deal.',o:'Treat transparency as part of literacy. Students should know which AI deals their university signs and why.'},
+  {h:'Society of Authors withdraws from Ethical AI Charter after member backlash',s:'The Bookseller',d:'Even writers’ unions cannot agree on what ethical AI use means.',o:'Write the rules together. A class can draft its own AI-use policy as a writing exercise.'}
+];
+const TABLE=[
+  ['Consistency','Can maintain consistency','May struggle to maintain consistency'],
+  ['Accuracy of information','May generate incorrect data due to poor resources or biases','May provide inaccurate information with potential grammatical errors'],
+  ['Speed of text generation','Quickly generates longer text','Takes longer to produce lengthy text'],
+  ['Idea generation speed','Quickly generates ideas, often based on existing ones','Slower idea generation but tends to be original and authentic'],
+  ['Content regeneration','Easily regenerates content (rewriting)','Takes longer to rewrite or rephrase text'],
+  ['Scalability','High scalability','Limited scalability'],
+  ['Multilingual support','Can generate content in any supported language','Writes in languages it understands and knows']
+];
+const MISSING=['Voice and lived experience','Intention and purpose','Where the words come from','Who answers for the facts','The process behind the text'];
+const PASSAGES=[
+  {t:'In today’s rapidly evolving digital landscape, artificial intelligence is transforming the way we write. By streamlining workflows and unlocking new possibilities, these tools empower writers to focus on what truly matters: creativity. However, it is important to approach this technology responsibly.',a:'m',why:'Sounds like a machine: stock phrases (“rapidly evolving landscape”, “unlocking new possibilities”), no concrete detail, and a balanced “however” that commits to nothing.'},
+  {t:'My grandmother wrote every recipe on the back of an envelope. The measurements were never right. “A glass of flour” meant her glass, the chipped one with a blue rim. After she died, we baked from the envelopes and failed for a whole winter.',a:'h',why:'Sounds human: one specific object, a private rule only a family would know, and an ending that admits failure instead of tidying it up.'},
+  {t:'The founder answered my first question with a spreadsheet. The second, about the layoffs, he answered by looking out of the window for a long time. Traffic crawled along Al Farabi Avenue below us. “Write that we are restructuring,” he said. I wrote down the silence instead.',a:'h',why:'Sounds human: a reporter’s eye, a named street, and a judgement about what counts as the real answer.'},
+  {t:'The city never truly sleeps. Neon lights flicker against rain-slicked streets, casting long shadows that whisper of secrets untold. Somewhere, a lone figure walks, carrying the weight of a past that refuses to stay buried.',a:'m',why:'Sounds like a machine: every image is the expected one (neon, rain, shadows, a lone figure), stitched into a mood with no person in it.'}
+];
+const TASKS=[['news','Breaking-news lede'],['profile','Feature story'],['essay','Personal essay about home'],['poem','Short poem']];
+const USES=[
+  ['brainstorm','Brainstorm','Planning (pre-writing)','Speed and range: many angles in a minute, including some I would not have considered.','Some ownership of the starting idea; the most obvious angle can crowd out my own.'],
+  ['draft','Draft','Translating, or rather generating','A complete, fluent text, fast.','The messy move from idea to sentence, where I find out what I think. Meekings calls this handing over responsibility and control.'],
+  ['critique','Critique','Reviewing','A tireless first reader: repeated words, weak transitions, missing sources.','Little, if I stay the author of every change. The risk is accepting edits without asking why.'],
+  ['none','None','All three stages, by hand','Full ownership and a clear trail of my own process.','Time, and a second reader who might catch my blind spots.']
+];
+const NOTES={
+  news:{brainstorm:'Useful for listing possible angles, but the facts must come from reporting, not from the model.',draft:'Risky: a fluent lede can carry a fact nobody has verified.',critique:'Good for checking length, clarity and whether the most important fact comes first.',none:'Normal under deadline. The editor becomes the second reader.'},
+  profile:{brainstorm:'Can map the background and prepare questions before the interviews.',draft:'The model knows the press release, not the room. The best details come from the interviews.',critique:'Can flag claims that sound like marketing and need a named source.',none:'Slower, but every fact has a person and a document behind it.'},
+  essay:{brainstorm:'Prompts can unlock memories, much like the exercises in Meekings’ grief-writing guide.',draft:'The text may be smooth, but it is no longer my memory.',critique:'Can show where I name an emotion instead of showing a detail.',none:'This is where writing works as discovery. I keep this one human.'},
+  poem:{brainstorm:'Can suggest forms beyond the Western default, such as a call-and-response structure close to the Kazakh aitys.',draft:'Produces the expected images first; the poem becomes an average of many poems.',critique:'Can test rhythm, repetition and line breaks without touching the images.',none:'Constraint and slowness are part of the form.'}
+};
+const VERDICT={brainstorm:'Low risk, if I choose the angle.',draft:'High cost: the hardest stage is handed over.',critique:'Best fit: AI reads, I write.',none:'Still the benchmark.'};
+const DROPS=[
+  {q:'Yet this is to confuse product with process.',p:'Meekings, 2026, p. 4',w:'He answers the panic that AI will “write” student work by separating writing from text output. This is the idea my whole reflection builds on.'},
+  {q:'an act of handing over responsibility and control',p:'Meekings, 2026, p. 5',w:'His line between translating and generating. For a journalist, responsibility is the one thing that cannot be delegated.'},
+  {q:'Rather than trying to cling to being original, we need to be diverse',p:'Meekings, 2026, p. 9',w:'AI repeats Western story shapes. Writers from other traditions, including Kazakh oral forms, hold something it does not.'},
+  {q:'We cannot ban AI any more than we might ban pencils',p:'Meekings, 2026, p. 13',w:'His strongest provocation, and the one I partly resist: pencils were never trained on other people’s books without consent.'}
+];
+const REFS=[
+  'Associated Press. (2026, July 21). <i>Judge approves a $1.5B Anthropic settlement over pirated books used to train the Claude chatbot</i>. ABC News. <a href="https://abcnews.com/amp/Technology/wireStory/judge-approves-15b-anthropic-settlement-pirated-books-train-134949964">https://abcnews.com/amp/Technology/wireStory/judge-approves-15b-anthropic-settlement-pirated-books-train-134949964</a>',
+  'Brown, L. (2026, October 21). Society of Authors withdraws from Ethical AI Charter after member backlash. <i>The Bookseller</i>. <a href="https://www.thebookseller.com/news/society-of-authors-withdraws-from-ethical-ai-charter-after-member-backlash">https://www.thebookseller.com/news/society-of-authors-withdraws-from-ethical-ai-charter-after-member-backlash</a>',
+  'Casassus, B. (2026, October 22). Thélyson Orélien’s Canadian publisher “cuts ties” over AI allegations. <i>The Bookseller</i>. <a href="https://www.thebookseller.com/news/thelyson-oreliens-canadian-publisher-cuts-ties-over-ai-allegations">https://www.thebookseller.com/news/thelyson-oreliens-canadian-publisher-cuts-ties-over-ai-allegations</a>',
+  'Markle, A., Moore, M., &amp; Meekings, S. (Eds.). (2026). <i>The creative writing workshop in the 21st century: Practical strategies for a modern era</i>. Bloomsbury Academic.',
+  'Meekings, S. (2021). Utilizing digital literacy in the creative writing classroom. <i>Journal of Creative Writing Studies, 6</i>(1), Article 11. <a href="https://repository.rit.edu/jcws/vol6/iss1/11">https://repository.rit.edu/jcws/vol6/iss1/11</a>',
+  'Meekings, S. (2025). <i>Wonder and loss: A practical memoir for writing about grief</i>. Bloomsbury Academic.',
+  'Meekings, S. (2026). AI won’t eat your brain: New taxonomies &amp; opportunities for the creative writing classroom. <i>New Writing</i>. Advance online publication. <a href="https://doi.org/10.1080/14790726.2026.2701206">https://doi.org/10.1080/14790726.2026.2701206</a>',
+  'Meekings, S., Assaf, L., Gwiza, G., Kazim, T., &amp; Mubashar, L. (2023). Barriers to creative writing among university students in Qatar. <i>Journal of Creative Writing Studies, 8</i>(1), Article 5. <a href="https://repository.rit.edu/jcws/vol8/iss1/5/">https://repository.rit.edu/jcws/vol8/iss1/5/</a>',
+  'Moore, M., &amp; Meekings, S. (Eds.). (2021). <i>The place and the writer: International intersections of teacher lore and creative writing pedagogy</i>. Bloomsbury Academic.',
+  'Moore, M., &amp; Meekings, S. (Eds.). (2024). <i>The scholarship of creative writing practice: Beyond craft, pedagogy and the academy</i>. Bloomsbury Academic.',
+  'National Centre for Writing. (2026). <i>Wonder and loss: Writing grief and memoir with Sam Meekings</i> [Audio podcast episode]. In <i>The Writing Life</i>. <a href="https://nationalcentreforwriting.org.uk/writing-hub/wonder-and-loss-writing-grief-and-memoir-with-sam-meekings/">https://nationalcentreforwriting.org.uk/writing-hub/wonder-and-loss-writing-grief-and-memoir-with-sam-meekings/</a>',
+  'Northwestern University in Qatar. (n.d.-a). <i>Sam Meekings</i> [Faculty profile]. <a href="https://www.qatar.northwestern.edu/directory/profiles/meekings-sam.html">https://www.qatar.northwestern.edu/directory/profiles/meekings-sam.html</a>',
+  'Northwestern University in Qatar. (n.d.-b). <i>Spencer Striker</i> [Faculty profile]. <a href="https://www.qatar.northwestern.edu/directory/profiles/striker-spencer.html">https://www.qatar.northwestern.edu/directory/profiles/striker-spencer.html</a>',
+  'Northwestern University in Qatar. (2025a, April 8). <i>Sam Meekings leads Buffett workshop on storytelling and trauma in Evanston</i>. <a href="https://www.qatar.northwestern.edu/news/articles/2025/4-Buffet-Meekings.html">https://www.qatar.northwestern.edu/news/articles/2025/4-Buffet-Meekings.html</a>',
+  'Northwestern University in Qatar. (2025b, November 16). <i>Meekings publishes new book exploring grief, memory, and the art of writing</i>. <a href="https://www.qatar.northwestern.edu/news/articles/2025/11-meekings-book-2025.html">https://www.qatar.northwestern.edu/news/articles/2025/11-meekings-book-2025.html</a>',
+  'Northwestern University in Qatar. (2025c, October 8). <i>Rawabet conference tackles AI’s global impact on scholarship and society</i>. <a href="https://www.qatar.northwestern.edu/news/articles/2025/9-post-rawabet-ai-conference.html">https://www.qatar.northwestern.edu/news/articles/2025/9-post-rawabet-ai-conference.html</a>',
+  'Northwestern University in Qatar. (2025d). <i>Shaping the AI-empowered future of knowledge, scholarship, and creativity</i> [Conference program]. <a href="https://www.qatar.northwestern.edu/special-events/rawabet/2025/shaping-AI-empowered-future.html">https://www.qatar.northwestern.edu/special-events/rawabet/2025/shaping-AI-empowered-future.html</a>',
+  'Northwestern University in Qatar. (2026). <i>Northwestern Qatar at Web Summit Qatar 2026</i>. <a href="https://www.qatar.northwestern.edu/special-events/web-summit/web-summit-2026.html">https://www.qatar.northwestern.edu/special-events/web-summit/web-summit-2026.html</a>',
+  'Oxford partnership allows OpenAI to use rare Bodleian texts to train ChatGPT. (2026, September 27). <i>Cherwell</i>. <a href="https://cherwell.org/2026/09/27/oxford-ai-partnership-uses-bodleian-texts-for-chatgpt/">https://cherwell.org/2026/09/27/oxford-ai-partnership-uses-bodleian-texts-for-chatgpt/</a>',
+  'Schofield, H. (2026, September 23). Uproar in France over award-winning author accused of using AI. <i>BBC News</i>. <a href="https://www.yahoo.com/entertainment/articles/uproar-france-over-award-winning-152810274.html">https://www.yahoo.com/entertainment/articles/uproar-france-over-award-winning-152810274.html</a>',
+  'Stojanović, L., Radojčić, V., Savić, S., Cvetković, A. S., &amp; Šarčević, D. (2023). The influence of artificial intelligence on creative writing: Exploring the synergy between AI and creative authorship. <i>International Journal of Engineering Inventions, 12</i>(12), 70–74.'
+];
+
+/* ---------- State (saved in localStorage when available) ---------- */
+const KEY='writersMap.v1';
+let S={unlocked:1,current:1,flipped:[],ink:[],guess:{},revealed:false,miss:[]};
+try{const raw=localStorage.getItem(KEY);if(raw)S=Object.assign(S,JSON.parse(raw));}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+const $=id=>document.getElementById(id);
+
+/* ---------- Map + menu ---------- */
+$('nodes').innerHTML=STATIONS.map((t,i)=>`<li><button class="node" data-n="${i+1}" aria-label="Station ${i+1}: ${t}">${i+1}</button></li>`).join('');
+$('menuList').innerHTML=STATIONS.map((t,i)=>`<button class="it" data-n="${i+1}"><span class="n">${i+1}</span><span>${t}</span></button>`).join('');
+function paintNav(){
+  document.querySelectorAll('.node').forEach(b=>{
+    const n=+b.dataset.n;b.disabled=n>S.unlocked;
+    b.classList.toggle('visited',n<=S.unlocked);b.classList.toggle('active',n===S.current);
+    b.setAttribute('aria-current',n===S.current?'step':'false');
+    if(n>S.unlocked)b.setAttribute('aria-label',`Station ${n}: ${STATIONS[n-1]} (locked)`);
+    else b.setAttribute('aria-label',`Station ${n}: ${STATIONS[n-1]}`);
+  });
+  document.querySelectorAll('.menu .it').forEach(b=>{const n=+b.dataset.n;b.disabled=n>S.unlocked;b.classList.toggle('v',n<=S.unlocked);
+    b.querySelector('span:last-child').textContent=STATIONS[n-1]+(n>S.unlocked?' (locked)':'');});
+  $('fill').style.width=`calc((100% - 44px) * ${(S.unlocked-1)/6})`;
+  const nb=document.querySelector(`.node[data-n="${S.current}"]`);
+  if(nb){const r=nb.getBoundingClientRect(),m=$('walker').parentElement.getBoundingClientRect();$('walker').style.left=(r.left-m.left+r.width/2)+'px';}
+}
+function go(n,focus=true){
+  n=Math.max(1,Math.min(7,n));if(n>S.unlocked)return;
+  const w=$('walker');w.classList.remove('step');void w.offsetWidth;w.classList.add('step');
+  S.current=n;save();
+  document.querySelectorAll('.station').forEach(s=>s.classList.toggle('on',+s.dataset.n===n));
+  if(location.hash!=='#station-'+n)history.replaceState(null,'','#station-'+n);
+  paintNav();window.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+  if(focus){const h=document.querySelector(`#s${n} h1, #s${n} h2.title`);if(h){h.setAttribute('tabindex','-1');h.focus({preventScroll:true});}}
+}
+function unlock(n){if(n>S.unlocked){S.unlocked=n;save();}paintNav();}
+$('nodes').addEventListener('click',e=>{const b=e.target.closest('.node');if(b&&!b.disabled)go(+b.dataset.n);});
+const menu=$('menu');
+function closeMenu(){menu.classList.remove('open');$('menuBtn').setAttribute('aria-expanded','false');$('menuBtn').focus();}
+$('menuBtn').addEventListener('click',()=>{menu.classList.add('open');$('menuBtn').setAttribute('aria-expanded','true');menu.querySelector('.it:not([disabled])').focus();});
+menu.addEventListener('click',e=>{const b=e.target.closest('.it');if(b&&!b.disabled){menu.classList.remove('open');$('menuBtn').setAttribute('aria-expanded','false');go(+b.dataset.n);}else if(e.target===menu)closeMenu();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&menu.classList.contains('open'))closeMenu();});
+document.addEventListener('click',e=>{const b=e.target.closest('[data-go]');if(b&&!b.disabled){const n=+b.dataset.go;unlock(n);go(n);}});
+
+/* ---------- Station 2: flip cards ---------- */
+$('cards').innerHTML=CARDS.map((c,i)=>`<button class="flip" data-i="${i}" aria-pressed="false">
+  <div class="face front"><span class="tag">Disruption · ${c.s}</span><span class="head">“${c.h}”</span><p>${c.d}</p><span class="hint">Tap to flip</span></div>
+  <div class="face back" aria-hidden="true"><span class="tag">Opportunity</span><p style="font-size:17px">${c.o}</p><span class="hint">Tap to flip back</span></div></button>`).join('');
+function paintCards(){
+  document.querySelectorAll('.flip').forEach(b=>{const on=S.flipped.includes(+b.dataset.i);b.classList.toggle('on',on);b.setAttribute('aria-pressed',on);
+    b.querySelector('.front').setAttribute('aria-hidden',on);b.querySelector('.back').setAttribute('aria-hidden',!on);});
+  const done=S.flipped.length>=CARDS.length||S.unlocked>2;
+  $('flipCount').textContent=`${Math.min(S.flipped.length,4)} of 4 cards flipped`;
+  $('go3').disabled=!done;$('lock2').style.display=done?'none':'';
+}
+$('cards').addEventListener('click',e=>{const b=e.target.closest('.flip');if(!b)return;const i=+b.dataset.i;
+  S.flipped=S.flipped.includes(i)?S.flipped:[...S.flipped,i];
+  if(b.classList.contains('on')){b.classList.remove('on');b.setAttribute('aria-pressed','false');b.querySelector('.front').setAttribute('aria-hidden','false');b.querySelector('.back').setAttribute('aria-hidden','true');}
+  else{b.classList.add('on');b.setAttribute('aria-pressed','true');b.querySelector('.front').setAttribute('aria-hidden','true');b.querySelector('.back').setAttribute('aria-hidden','false');}
+  save();const done=S.flipped.length>=CARDS.length||S.unlocked>2;$('flipCount').textContent=`${S.flipped.length} of 4 cards flipped`;$('go3').disabled=!done;$('lock2').style.display=done?'none':'';});
+
+/* ---------- Station 3: table, missing rows, passages ---------- */
+$('tbl').innerHTML=TABLE.map(r=>`<tr><th scope="row">${r[0]}</th><td data-l="AI">${r[1]}</td><td data-l="Human">${r[2]}</td></tr>`).join('');
+$('chips').innerHTML=MISSING.map((m,i)=>`<button class="chip" data-i="${i}" aria-pressed="false">${m}</button>`).join('');
+function paintMiss(){
+  document.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',S.miss.includes(+c.dataset.i)));
+  const rows=S.miss.map(i=>`<tr class="miss"><th scope="row">${MISSING[i]}</th><td data-l="AI">Not measured</td><td data-l="Human">Not measured</td></tr>`).join('');
+  const old=document.querySelectorAll('#tbl tr.miss');old.forEach(r=>r.remove());$('tbl').insertAdjacentHTML('beforeend',rows);
+  $('missNote').style.display=S.miss.length?'block':'none';
+}
+$('chips').addEventListener('click',e=>{const c=e.target.closest('.chip');if(!c)return;const i=+c.dataset.i;S.miss=S.miss.includes(i)?S.miss.filter(x=>x!==i):[...S.miss,i];save();paintMiss();});
+$('passages').innerHTML=PASSAGES.map((p,i)=>`<div class="pass" id="p${i}"><blockquote>${p.t}</blockquote>
+  <div class="row" role="group" aria-label="Passage ${i+1}: your guess"><span class="cap" style="margin-right:4px">Passage ${i+1}</span>
+  <button class="chip" data-p="${i}" data-g="h" aria-pressed="false">Sounds human</button><button class="chip" data-p="${i}" data-g="m" aria-pressed="false">Sounds like a machine</button></div>
+  <div class="verdict"></div></div>`).join('');
+function paintPass(){
+  let n=0;PASSAGES.forEach((p,i)=>{const g=S.guess[i];if(g)n++;
+    document.querySelectorAll(`[data-p="${i}"]`).forEach(b=>b.setAttribute('aria-pressed',b.dataset.g===g));
+    const box=$('p'+i);box.classList.toggle('revealed',S.revealed);
+    if(S.revealed)box.querySelector('.verdict').innerHTML=`<b>${g===p.a?'Your guess matches the features.':'The features point the other way.'}</b> ${p.why}`;});
+  $('guessCount').textContent=S.revealed?'':`${n} of 4 passages marked`;
+  $('reveal').disabled=n<4||S.revealed;$('twist').style.display=S.revealed?'block':'none';
+  const done=S.revealed||S.unlocked>3;$('go4').disabled=!done;$('lock3').style.display=done?'none':'';
+}
+$('passages').addEventListener('click',e=>{const b=e.target.closest('[data-p]');if(!b||S.revealed)return;S.guess[b.dataset.p]=b.dataset.g;save();paintPass();});
+$('reveal').addEventListener('click',()=>{S.revealed=true;save();paintPass();$('twist').focus?.();});
+
+/* ---------- Station 4: experiment lab ---------- */
+$('taskOpts').innerHTML=TASKS.map((t,i)=>`<label><input type="radio" name="task" value="${t[0]}" ${i===2?'checked':''}>${t[1]}</label>`).join('');
+$('useOpts').innerHTML=USES.map((u,i)=>`<label><input type="radio" name="use" value="${u[0]}" ${i===1?'checked':''}>${u[1]}</label>`).join('');
+function paintLab(){
+  const t=document.querySelector('input[name=task]:checked').value,u=document.querySelector('input[name=use]:checked').value;
+  const U=USES.find(x=>x[0]===u),T=TASKS.find(x=>x[0]===t);
+  $('labOut').innerHTML=`<p class="tag" style="margin:0 0 6px">${T[1]} · ${U[1]}</p><h4>Stage handed over: ${U[2]}</h4>
+   <div class="gl"><div><b>Gained</b>${U[3]}</div><div><b>Lost</b>${U[4]}</div></div>
+   <p style="margin:0 0 6px">${NOTES[t][u]}</p><p class="cap" style="margin:0;color:var(--ink2)">Verdict: ${VERDICT[u]}</p>`;
+}
+$('lab').addEventListener('change',paintLab);
+
+/* ---------- Station 5: ink drops ---------- */
+const inkSvg='<svg class="ink" viewBox="0 0 18 24" aria-hidden="true"><path d="M9 1C12 7 17 11 17 16a8 8 0 0 1-16 0C1 11 6 7 9 1z" fill="none" stroke="#E8175D" stroke-width="2"/></svg>';
+$('drops').innerHTML=DROPS.map((d,i)=>`<button class="drop" data-i="${i}" aria-pressed="false">${inkSvg}<div class="q">“${d.q}”</div><div class="src">(${d.p})</div><div class="why">${d.w}</div></button>`).join('');
+function paintInk(){
+  document.querySelectorAll('.drop').forEach(b=>{const on=S.ink.includes(+b.dataset.i);b.classList.toggle('got',on);b.setAttribute('aria-pressed',on);});
+  $('inkCount').textContent=`${S.ink.length} of ${DROPS.length} ink drops collected`;
+  const done=S.ink.length>=DROPS.length||S.unlocked>5;$('go6').disabled=!done;$('lock5').style.display=done?'none':'';
+}
+$('drops').addEventListener('click',e=>{const b=e.target.closest('.drop');if(!b)return;const i=+b.dataset.i;if(!S.ink.includes(i))S.ink.push(i);save();paintInk();});
+
+/* ---------- Station 7: badge + references ---------- */
+$('refs').innerHTML=REFS.map(r=>`<p>${r}</p>`).join('');
+$('copyBadge').addEventListener('click',async()=>{try{await navigator.clipboard.writeText('Writing is the whole process. Keep the hard part human. (The Writer’s Map, Tomiris Tutkabayeva)');$('copyMsg').textContent='Copied.';}catch(err){$('copyMsg').textContent='Copying is blocked here. Select the text above instead.';}});
+$('restart').addEventListener('click',()=>go(1));
+
+/* ---------- Boot ---------- */
+paintCards();paintMiss();paintPass();paintLab();paintInk();
+const fromHash=/^#station-(\d)$/.exec(location.hash);
+go(fromHash&&+fromHash[1]<=S.unlocked?+fromHash[1]:S.current,false);
+addEventListener('hashchange',()=>{const m=/^#station-(\d)$/.exec(location.hash);if(m)go(+m[1]);});
+const ro=new ResizeObserver(()=>paintNav());ro.observe(document.querySelector('.map'));
+}
+</script>
+</body>
+</html>
